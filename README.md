@@ -125,7 +125,8 @@ SentinelFlow
 │   └── SentinelFlow_06 - SOC Dashboard & Reporting.json
 │
 ├── docs/
-│   ├── architecture.png        
+│   ├── architecture.png
+![SentinelFlow Architecture](docs/architecture.png)
 │   │
 │   └── workflow-documentation/
 │       ├──04_Workflow_Documentation.md
@@ -134,6 +135,7 @@ SentinelFlow
 │   ├── agent 1.png
     ├── agent 2.png
     ├── agent 3.png
+    ├── agent 4.png
     ├── agent 5.png
     ├── agent 6.png
 │
