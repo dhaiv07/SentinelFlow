@@ -131,7 +131,11 @@ SentinelFlow
 │       ├──04_Workflow_Documentation.md
 │
 ├── screenshots/
-│   ├── 
+│   ├── agent 1.png
+    ├── agent 2.png
+    ├── agent 3.png
+    ├── agent 5.png
+    ├── agent 6.png
 │
 └── .gitignore
 
@@ -172,4 +176,4 @@ Database: Supabase
 
 Author
 
-Dhairya Verma
+Dhairya Verma / dhaiv07(github profile name)
