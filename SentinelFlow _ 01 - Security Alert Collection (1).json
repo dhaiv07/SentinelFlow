@@ -1,0 +1,339 @@
+{
+  "name": "SentinelFlow | 01 - Security Alert Collection",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sentinelflow-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1da36486-4571-4f59-9cf2-ac04519f0238",
+      "name": "Webhook",
+      "webhookId": "92576a52-b3f5-496c-82f3-8d03c6754974"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5d8947d3-aad0-4381-ae67-f926d57689e5",
+              "name": "alert_source",
+              "value": "={{$json.body.alert_source}}",
+              "type": "string"
+            },
+            {
+              "id": "1fd454dc-5d5f-408e-8f03-a3ec0589e05f",
+              "name": "alert_type",
+              "value": "={{$json.body.alert_type}}",
+              "type": "string"
+            },
+            {
+              "id": "d225251b-c65c-4b82-9837-5d12c5d8bf3f",
+              "name": "source_ip",
+              "value": "={{$json.body.source_ip}}",
+              "type": "string"
+            },
+            {
+              "id": "71c9faeb-cbdf-4c81-868b-948e0a991682",
+              "name": "destination_ip",
+              "value": "={{$json.body.destination_ip}}",
+              "type": "string"
+            },
+            {
+              "id": "b155f96a-0ac5-4f03-b652-51ec17e18bd7",
+              "name": "description",
+              "value": "={{$json.body.description}}",
+              "type": "string"
+            },
+            {
+              "id": "5459695b-7f95-4735-9c42-d0c39a7b6e5e",
+              "name": "initial_severity",
+              "value": "={{$json.body.initial_severity}}",
+              "type": "string"
+            },
+            {
+              "id": "f39e9f8d-3ff1-4ef6-bfd9-3e0727aa6619",
+              "name": "timestamp",
+              "value": "={{$json.body.timestamp}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ee73d85d-7aeb-4578-8a8c-8c61e671e07a",
+      "name": "Standardize Alert Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5c6d9929-7b2f-4a2f-8a48-cbb58dff7b67",
+              "leftValue": "={{ $json.isValid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        0
+      ],
+      "id": "37ccd7d7-bcb8-4fcf-89c4-1e02904b6b07",
+      "name": "Is Alert Valid?"
+    },
+    {
+      "parameters": {
+        "tableId": "alerts",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alert_id",
+              "fieldValue": "={{$json.alert_id}}"
+            },
+            {
+              "fieldId": "alert_source",
+              "fieldValue": "={{$json.alert_source}}"
+            },
+            {
+              "fieldId": "alert_type",
+              "fieldValue": "={{$json.alert_type}}"
+            },
+            {
+              "fieldId": "source_ip",
+              "fieldValue": "={{$json.source_ip}}"
+            },
+            {
+              "fieldId": "destination_ip",
+              "fieldValue": "={{$json.destination_ip}}"
+            },
+            {
+              "fieldId": "description",
+              "fieldValue": "={{$json.description}}"
+            },
+            {
+              "fieldId": "initial_severity",
+              "fieldValue": "={{$json.initial_severity}}"
+            },
+            {
+              "fieldId": "event_timestamp",
+              "fieldValue": "={{$json.timestamp}}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{$json.status}}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{$json.created_at}}"
+            },
+            {
+              "fieldId": "is_valid",
+              "fieldValue": "={{$json.isValid}}"
+            },
+            {
+              "fieldId": "validation_message",
+              "fieldValue": "={{$json.validationMessage}}"
+            },
+            {
+              "fieldId": "incident_status",
+              "fieldValue": "Open"
+            },
+            {
+              "fieldId": "threat_intel_complete",
+              "fieldValue": "False"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "bc7e1418-9b03-4259-8eaa-5d2f14e2a23e",
+      "name": "Store Security Alert",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $input.first().json;\n\nconst now = new Date();\nconst datePart = now.toISOString().slice(0, 10).replace(/-/g, \"\");\nconst randomPart = Math.floor(1000 + Math.random() * 9000);\n\nreturn [\n  {\n    json: {\n      ...alert,\n      alert_id: `ALT-${datePart}-${randomPart}`,\n      status: \"New\",\n      created_at: now.toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -96
+      ],
+      "id": "27727b14-b54c-4413-add0-62258e08473d",
+      "name": "Generate Incident Metadata"
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $input.first().json;\n\nconst requiredFields = [\n  \"alert_source\",\n  \"alert_type\",\n  \"source_ip\",\n  \"destination_ip\",\n  \"description\",\n  \"initial_severity\",\n  \"timestamp\"\n];\n\nconst missingFields = requiredFields.filter(\n  field => !alert[field] || alert[field].toString().trim() === \"\"\n);\n\nconst validSeverities = [\"Low\", \"Medium\", \"High\", \"Critical\"];\n\nconst isSeverityValid = validSeverities.includes(alert.initial_severity);\n\nreturn [\n  {\n    json: {\n      ...alert,\n      isValid: missingFields.length === 0 && isSeverityValid,\n      missingFields,\n      validationMessage:\n        missingFields.length > 0\n          ? `Missing fields: ${missingFields.join(\", \")}`\n          : isSeverityValid\n            ? \"Alert validation successful.\"\n            : \"Invalid severity level.\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0e82785b-59c3-4bf5-936d-7d04881a5368",
+      "name": "Validate Alert Payload"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"message\": \"Security alert validation failed.\",\n  \"reason\": \"{{$json.validationMessage}}\",\n  \"missing_fields\": {{$json.missingFields}}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        816,
+        96
+      ],
+      "id": "4edc07b2-cdee-4ff3-ae62-f27106d9c083",
+      "name": "Return Error"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Security alert received successfully.\",\n  \"alert_id\": \"{{$json.alert_id}}\",\n  \"status\": \"{{$json.status}}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1280,
+        -96
+      ],
+      "id": "40c9ff43-612e-4fdf-a4ac-0eb75567f0e8",
+      "name": "Return Success"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Standardize Alert Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Standardize Alert Fields": {
+      "main": [
+        [
+          {
+            "node": "Validate Alert Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Alert Valid?": {
+      "main": [
+        [
+          {
+            "node": "Generate Incident Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Security Alert": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Incident Metadata": {
+      "main": [
+        [
+          {
+            "node": "Store Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Alert Payload": {
+      "main": [
+        [
+          {
+            "node": "Is Alert Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "fe061ec1-6e50-41c1-89b6-f08e2b96c0e4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "X67W0XTi3fY9fHRU",
+  "tags": []
+}

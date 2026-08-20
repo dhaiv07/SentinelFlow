@@ -1,0 +1,302 @@
+{
+  "name": "SentinelFlow | 04 - Incident Assignment & Escalation",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alerts",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "ai_analysis_complete",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "b1e916ff-fe12-4b1f-b5cd-29c74bf2ad86",
+      "name": "Retrieve AI Classified Incident",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const incident = $(\"Retrieve AI Classified Incident\").first().json;\n\nconst priority = (incident.priority || \"\").toLowerCase();\nconst threatLevel = (incident.threat_level || \"\").toLowerCase();\n\nlet assignedAnalyst = \"\";\nlet assignmentStatus = \"Assigned\";\nlet escalated = false;\n\nif (priority === \"critical\" || threatLevel === \"critical\") {\n  assignedAnalyst = \"Tier 3 SOC Analyst\";\n  escalated = true;\n}\nelse if (priority === \"high\" || threatLevel === \"high\") {\n  assignedAnalyst = \"Tier 2 SOC Analyst\";\n}\nelse {\n  assignedAnalyst = \"Tier 1 SOC Analyst\";\n}\n\nreturn [{\n  json: {\n    ...incident,\n    assigned_analyst: assignedAnalyst,\n    assignment_status: assignmentStatus,\n    escalated: escalated,\n    escalated_at: escalated ? new Date().toISOString() : null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "68b1ffe7-ea0a-48dd-a949-384d760a7778",
+      "name": "Determine Analyst Assignment"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7c3939cb-6efd-4355-9bb0-a2db4180daf0",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "265da34c-59f9-422e-8cd7-b02f2eb25439",
+              "leftValue": "={{ $json.escalated }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        624,
+        0
+      ],
+      "id": "d655449b-c39e-40fd-99d3-2bc4a07a2b1f",
+      "name": "Is Incident Escalated?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7115997-c1ea-4b3e-8c80-3ea8eded4cca",
+              "name": "notification_sent",
+              "value": "true",
+              "type": "string"
+            },
+            {
+              "id": "927ec19d-2bde-4169-90f0-75c13bb26f13",
+              "name": "notification_type",
+              "value": "notification_type",
+              "type": "string"
+            },
+            {
+              "id": "ea292f65-0f69-462c-a2ab-39303683b29e",
+              "name": "notification_message",
+              "value": "Incident assigned successfully",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        832,
+        96
+      ],
+      "id": "d29cc2d6-2035-4393-85b2-ef6a038f36cb",
+      "name": "Standard Assignment Record"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alerts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "alert_id",
+              "condition": "eq",
+              "keyValue": "={{$json.alert_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "assigned_analyst",
+              "fieldValue": "={{$json.assigned_analyst}}"
+            },
+            {
+              "fieldId": "assignment_status",
+              "fieldValue": "={{$json.assignment_status}}"
+            },
+            {
+              "fieldId": "escalated",
+              "fieldValue": "={{$json.escalated}}"
+            },
+            {
+              "fieldId": "escalated_at",
+              "fieldValue": "={{$json.escalated_at}}"
+            },
+            {
+              "fieldId": "notification_type",
+              "fieldValue": "={{ $json.notification_type }}"
+            },
+            {
+              "fieldId": "notification_message",
+              "fieldValue": "={{ $json.notification_message }}"
+            },
+            {
+              "fieldId": "notfication_sent",
+              "fieldValue": "={{ $json.notification_sent }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        -16
+      ],
+      "id": "1a044d59-4310-4c93-b0f8-12fa25716e4f",
+      "name": "Update Assignment",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "=🚨 CRITICAL SECURITY INCIDENT\n\nAlert ID: {{$json.alert_id}}\nAlert Type: {{$json.alert_type}}\nSource IP: {{$json.source_ip}}\nThreat Score: {{$json.threat_score}}\nPriority: {{$json.priority}}\nAssigned Analyst: {{$json.assigned_analyst}}\n\nStatus: Escalated for immediate investigation.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        832,
+        -144
+      ],
+      "id": "b6f44b48-42cb-45b1-b322-3c06f5dbabd9",
+      "name": "Discord",
+      "webhookId": "109be065-1c3c-4ea7-8b07-b1f0b8cfea3b",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "0E4HC7KG11qN4wiA",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retrieve AI Classified Incident": {
+      "main": [
+        [
+          {
+            "node": "Determine Analyst Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Retrieve AI Classified Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Determine Analyst Assignment": {
+      "main": [
+        [
+          {
+            "node": "Is Incident Escalated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Incident Escalated?": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Standard Assignment Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Standard Assignment Record": {
+      "main": [
+        [
+          {
+            "node": "Update Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord": {
+      "main": [
+        [
+          {
+            "node": "Update Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "5ef0aedf-2333-48e5-a77c-b7123efd2eff",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "XDUV8eBoY9i1OVND",
+  "tags": []
+}

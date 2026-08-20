@@ -1,0 +1,280 @@
+{
+  "name": "SentinelFlow | 05 - Analyst Review & Incident Closure",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "4d6c56f0-7651-41e8-bc6c-f764c15b1d13",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alerts",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "assignment_status",
+              "condition": "neq",
+              "keyValue": "empty"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        176,
+        0
+      ],
+      "id": "7cc3d2fe-95d7-473d-afdb-59d69a84a4b4",
+      "name": "Retrieve Assigned Incident",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const incident = $input.first().json;\n\n// Demo logic:\n// incidents with threat score below 60 are considered resolved\nconst resolved = Number(incident.threat_score || 0) < 60;\n\nreturn [\n  {\n    json: {\n      ...incident,\n      resolution_status: resolved,\n      analyst_notes: resolved\n        ? \"Threat reviewed and contained successfully.\"\n        : \"Further investigation and containment actions are required.\",\n      incident_status: resolved\n        ? \"Closed\"\n        : \"Under Investigation\",\n      reviewed_at: new Date().toISOString(),\n      closed_at: resolved\n        ? new Date().toISOString()\n        : null\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        368,
+        0
+      ],
+      "id": "68b51d0c-43b1-43dc-a29f-3bcafc8d1cad",
+      "name": "Simulate Analyst Review"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0271a1f4-4123-4090-be23-7fd691cb829a",
+              "leftValue": "={{$json.resolution_status}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        576,
+        0
+      ],
+      "id": "b92c606e-8e87-4319-aa2f-ee08488ca866",
+      "name": "Is Incident Resolved?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alerts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "alert_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.alert_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "analyst_notes",
+              "fieldValue": "={{ $json.analyst_notes }}"
+            },
+            {
+              "fieldId": "resolution_status",
+              "fieldValue": "={{$json.resolution_status}}"
+            },
+            {
+              "fieldId": "incident_status",
+              "fieldValue": "={{$json.incident_status}}"
+            },
+            {
+              "fieldId": "reviewed_at",
+              "fieldValue": "={{ $json.reviewed_at }}"
+            },
+            {
+              "fieldId": "closed_at",
+              "fieldValue": "={{ $json.closed_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "983744a1-89da-4f2c-82c2-e4f089864193",
+      "name": "Update Incident Status",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "✅ Incident Closed: Alert ALT-20260727-8610 has been resolved.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        784,
+        -160
+      ],
+      "id": "412476a0-fe65-4f18-80af-a5138ec789a4",
+      "name": "Discord",
+      "webhookId": "9820cde1-b590-41c9-a083-0fcb8b820274",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "0E4HC7KG11qN4wiA",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "⚠️ Investigation Continues: Alert ALT-20260727-8610 requires further investigation.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        784,
+        96
+      ],
+      "id": "a0f0db0d-9f18-4910-b5b0-246219b0ca3c",
+      "name": "Discord1",
+      "webhookId": "80990c4c-ea98-4110-a6a1-0cdafd8b46ef",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "0E4HC7KG11qN4wiA",
+          "name": "Discord Webhook account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Assigned Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Assigned Incident": {
+      "main": [
+        [
+          {
+            "node": "Simulate Analyst Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Analyst Review": {
+      "main": [
+        [
+          {
+            "node": "Is Incident Resolved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Incident Resolved?": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord": {
+      "main": [
+        [
+          {
+            "node": "Update Incident Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord1": {
+      "main": [
+        [
+          {
+            "node": "Update Incident Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "2e602083-5f31-4584-ace0-1f1aaf1e3fd9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "vVQNno6QVKJ7quzt",
+  "tags": []
+}

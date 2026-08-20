@@ -1,0 +1,254 @@
+{
+  "name": "SentinelFlow | 06 - SOC Dashboard & Reporting",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "54a41b3f-2f0b-41b1-8504-c533bab33f21",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alerts"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        192,
+        0
+      ],
+      "id": "e0f15729-11b7-4f59-a940-ba7fa3834a71",
+      "name": "Retrieve All Incidents",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const incidents = $input.all().map(i => i.json);\n\nconst total = incidents.length;\n\nconst critical = incidents.filter(i => i.threat_level === \"Critical\").length;\n\nconst resolved = incidents.filter(i => i.incident_status === \"Closed\").length;\n\nconst investigating = incidents.filter(\n    i => i.incident_status === \"Under Investigation\"\n).length;\n\nconst avgThreat =\n    total === 0\n        ? 0\n        : incidents.reduce((s, i) => s + (i.threat_score || 0), 0) / total;\n\nreturn [\n{\njson:{\n\ntotal_incidents: total,\n\ncritical_incidents: critical,\n\nresolved_incidents: resolved,\n\nunder_investigation: investigating,\n\naverage_threat_score:\nNumber(avgThreat.toFixed(2))\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "id": "ae8966fb-d3e6-46c8-bfc0-9e30286322fa",
+      "name": "Calculate Security Metrics"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a SOC manager.\n\nCreate a concise executive summary (3-5 sentences) using the following metrics.\n\nTotal Incidents:\n{{$json.total_incidents}}\n\nCritical Incidents:\n{{$json.critical_incidents}}\n\nResolved Incidents:\n{{$json.resolved_incidents}}\n\nUnder Investigation:\n{{$json.under_investigation}}\n\nAverage Threat Score:\n{{$json.average_threat_score}}\n\nHighlight key security observations and recommend next actions.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        640,
+        0
+      ],
+      "id": "17fd79ca-0774-49c3-9569-f04620cebfaa",
+      "name": "AI Summary"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "maxTokensToSample": 2048
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        576,
+        208
+      ],
+      "id": "22370983-2e0f-45d9-a87c-9313459e9b8b",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "0Jcd3b4mvs8W2gSI",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70da36f1-fe0e-4851-9fcc-2abb36b6bc00",
+              "name": "report_id",
+              "value": "=REP-{{$now.toFormat('yyyyMMddHHmmss')}}",
+              "type": "string"
+            },
+            {
+              "id": "a7bc57c3-9c97-41f1-9954-88e73d717a00",
+              "name": "generated_at",
+              "value": "={{$now.toISO()}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        992,
+        0
+      ],
+      "id": "5b22c03b-a7a3-4679-9ea9-a72d0be26da9",
+      "name": "Prepare Report"
+    },
+    {
+      "parameters": {
+        "tableId": "soc_reports",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "report_id",
+              "fieldValue": "=REP-{{$now.toFormat('yyyyMMddHHmmss')}}"
+            },
+            {
+              "fieldId": "generated_at",
+              "fieldValue": "={{$json.generated_at}}"
+            },
+            {
+              "fieldId": "total_incidents",
+              "fieldValue": "={{$node[\"Calculate Security Metrics\"].json[\"total_incidents\"]}}"
+            },
+            {
+              "fieldId": "critical_incidents",
+              "fieldValue": "={{$node[\"Calculate Security Metrics\"].json[\"critical_incidents\"]}}"
+            },
+            {
+              "fieldId": "resolved_incidents",
+              "fieldValue": "={{$node[\"Calculate Security Metrics\"].json[\"resolved_incidents\"]}}"
+            },
+            {
+              "fieldId": "under_investigation",
+              "fieldValue": "={{$node[\"Calculate Security Metrics\"].json[\"under_investigation\"]}}"
+            },
+            {
+              "fieldId": "average_threat_score",
+              "fieldValue": "={{$node[\"Calculate Security Metrics\"].json[\"average_threat_score\"]}}"
+            },
+            {
+              "fieldId": "executive_summary",
+              "fieldValue": "={{$node[\"AI Summary\"].json[\"text\"]}}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ],
+      "id": "32188d32-fa3a-4c75-8d61-560783683703",
+      "name": "Store Executive Report",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Retrieve All Incidents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve All Incidents": {
+      "main": [
+        [
+          {
+            "node": "Calculate Security Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Security Metrics": {
+      "main": [
+        [
+          {
+            "node": "AI Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Summary",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Report": {
+      "main": [
+        [
+          {
+            "node": "Store Executive Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "7f43db9f-a267-4cef-98fa-9139ce024d2c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "GKj4nMcvtuObU3tr",
+  "tags": []
+}

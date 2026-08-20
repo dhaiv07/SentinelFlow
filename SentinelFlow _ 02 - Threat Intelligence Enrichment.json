@@ -1,0 +1,273 @@
+{
+  "name": "SentinelFlow | 02 - Threat Intelligence Enrichment",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alerts",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": []
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "20da4f02-f5b8-4cfa-9ce3-e0b3ddcfd417",
+      "name": "Retrieve Security Alert",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/ip_addresses/{{$json.source_ip}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apikey",
+              "value": "652032ed99474604fa048abc26dd93cd4241a98d84ce3110468bc28d7f70d321"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "6056663f-88c0-4d4a-a470-4019dd40d876",
+      "name": "VirusTotal IP Lookup"
+    },
+    {
+      "parameters": {
+        "url": "https://api.abuseipdb.com/api/v2/check",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ipAddress",
+              "value": "={{$node[\"Retrieve Security Alert\"].json[\"source_ip\"]}}"
+            },
+            {
+              "name": "maxAgeInDays",
+              "value": "90"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "b34f992ac3b49c080f890fc5dca3dcdf7afeef777c10f26191db90f853a41ad0c73c87b865afc464"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "2edbda72-f282-4171-b64f-b5e21965c205",
+      "name": "AbuseIPDB Lookup"
+    },
+    {
+      "parameters": {
+        "url": "=https://ipinfo.io/{{$node[\"Retrieve Security Alert\"].json[\"source_ip\"]}}/json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "94640aeac9efce"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "b567408f-b4e5-4248-9ab7-38db3976dbd7",
+      "name": "IPInfo Lookup"
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $(\"Retrieve Security Alert\").first().json;\nconst virusTotal = $(\"VirusTotal IP Lookup\").first().json;\nconst abuseIPDB = $(\"AbuseIPDB Lookup\").first().json;\nconst ipInfo = $(\"IPInfo Lookup\").first().json;\n\n// VirusTotal values\nconst vtStats =\n  virusTotal.data?.attributes?.last_analysis_stats || {};\n\nconst malicious = Number(vtStats.malicious || 0);\nconst suspicious = Number(vtStats.suspicious || 0);\n\n// AbuseIPDB values\nconst abuseData = abuseIPDB.data || {};\nconst abuseConfidenceScore = Number(\n  abuseData.abuseConfidenceScore || 0\n);\nconst totalReports = Number(abuseData.totalReports || 0);\n\n// Calculate individual scores\nconst virusTotalScore = Math.min(\n  100,\n  malicious * 15 + suspicious * 5\n);\n\nconst abuseScore = Math.min(100, abuseConfidenceScore);\n\n// Weighted final score\nconst threatScore = Math.round(\n  virusTotalScore * 0.6 +\n  abuseScore * 0.4\n);\n\n// Determine threat level\nlet threatLevel = \"Low\";\n\nif (threatScore >= 75) {\n  threatLevel = \"Critical\";\n} else if (threatScore >= 50) {\n  threatLevel = \"High\";\n} else if (threatScore >= 25) {\n  threatLevel = \"Medium\";\n}\n\nreturn [\n  {\n    json: {\n      ...alert,\n\n      threat_score: threatScore,\n      threat_level: threatLevel,\n\n      virustotal_malicious: malicious,\n      virustotal_suspicious: suspicious,\n\n      abuse_confidence_score: abuseConfidenceScore,\n      abuse_total_reports: totalReports,\n\n      ip_country: ipInfo.country || null,\n      ip_city: ipInfo.city || null,\n      ip_region: ipInfo.region || null,\n      ip_organization: ipInfo.org || null,\n      ip_timezone: ipInfo.timezone || null,\n\n      threat_intel_complete: true,\n      enriched_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "6e0bf2d5-d6d7-4cc9-a514-035444780070",
+      "name": "Calculate Threat Score"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alerts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "alert_id",
+              "condition": "eq",
+              "keyValue": "={{$json.alert_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "threat_score",
+              "fieldValue": "={{$json.threat_score}}"
+            },
+            {
+              "fieldId": "threat_level",
+              "fieldValue": "={{ $json.threat_level }}"
+            },
+            {
+              "fieldId": "threat_intel_complete",
+              "fieldValue": "={{ $json.threat_intel_complete }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "f4f3e2e7-19da-4d39-b00a-e17cae1d1c5a",
+      "name": "Update Security Alert",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "835371a0-1a84-4cdd-b453-c4a597a126a1",
+      "name": "Manual Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retrieve Security Alert": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal IP Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal IP Lookup": {
+      "main": [
+        [
+          {
+            "node": "AbuseIPDB Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AbuseIPDB Lookup": {
+      "main": [
+        [
+          {
+            "node": "IPInfo Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IPInfo Lookup": {
+      "main": [
+        [
+          {
+            "node": "Calculate Threat Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Threat Score": {
+      "main": [
+        [
+          {
+            "node": "Update Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Security Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9b520d82-8d74-4dee-9446-58a5b05bc7ad",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "wN7DniCEHQieiest",
+  "tags": []
+}

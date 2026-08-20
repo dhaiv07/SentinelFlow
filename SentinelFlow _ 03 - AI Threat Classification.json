@@ -1,0 +1,250 @@
+{
+  "name": "SentinelFlow | 03 - AI Threat Classification",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const alert = $(\"Retrieve Enriched Alert\").first().json;\n\nconst prompt = `\nYou are a Senior SOC (Security Operations Center) Analyst.\n\nAnalyze the following security alert and provide a professional incident assessment.\n\nSecurity Alert:\n\nAlert ID: ${alert.alert_id}\n\nAlert Type: ${alert.alert_type}\n\nDescription:\n${alert.description}\n\nSource IP:\n${alert.source_ip}\n\nDestination IP:\n${alert.destination_ip}\n\nInitial Severity:\n${alert.initial_severity}\n\nThreat Score:\n${alert.threat_score}/100\n\nThreat Level:\n${alert.threat_level}\n\nYour response MUST be valid JSON only.\n\n{\n  \"incident_summary\":\"\",\n  \"risk_assessment\":\"\",\n  \"recommended_actions\":[\n    \"\",\n    \"\",\n    \"\"\n  ],\n  \"priority\":\"\",\n  \"confidence\":0\n}\n`;\n\nreturn [\n{\njson:{\n...alert,\nprompt\n}\n}\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0aeea546-d2fc-4109-9165-f293838aa07f",
+      "name": "Prepare AI Prompt"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alerts",
+        "limit": 1,
+        "orderBy": "created_at.desc",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "threat_intel_complete",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e6d2ec7a-b3aa-46d4-bf89-f5a2006b8bd6",
+      "name": "Retrieve Enriched Alert",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json.prompt}}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        624,
+        0
+      ],
+      "id": "f99535fd-bf68-426c-bcae-cb3f02dd5474",
+      "name": "Groq Threat Analysis"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        576,
+        192
+      ],
+      "id": "e18c4749-85d4-4f25-a4d2-cbda64a52619",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "0Jcd3b4mvs8W2gSI",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const alert = $(\"Retrieve Enriched Alert\").first().json;\n\n// Basic LLM Chain usually returns the model output in \"text\"\nlet response = $input.first().json.text || \"\";\n\n// Remove markdown code fences if Groq adds them\nresponse = response\n  .replace(/```json/gi, \"\")\n  .replace(/```/g, \"\")\n  .trim();\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(response);\n} catch (error) {\n  parsed = {\n    incident_summary: response,\n    risk_assessment: \"The AI response could not be parsed as JSON.\",\n    recommended_actions: [],\n    priority: \"Unknown\",\n    confidence: 0\n  };\n}\n\nreturn [\n  {\n    json: {\n      ...alert,\n      incident_summary: parsed.incident_summary || \"\",\n      risk_assessment: parsed.risk_assessment || \"\",\n      recommended_actions: parsed.recommended_actions || [],\n      priority: parsed.priority || \"Unknown\",\n      confidence: Number(parsed.confidence || 0),\n      ai_analysis_complete: true,\n      analyzed_at: new Date().toISOString()\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        0
+      ],
+      "id": "65c5c295-4e22-484b-adf0-661952018f1f",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alerts",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "alert_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.alert_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "incident_summary",
+              "fieldValue": "={{ $json.incident_summary }}"
+            },
+            {
+              "fieldId": "risk_assessment",
+              "fieldValue": "={{ $json.risk_assessment }}"
+            },
+            {
+              "fieldId": "priority",
+              "fieldValue": "={{ $json.priority }}"
+            },
+            {
+              "fieldId": "confidence",
+              "fieldValue": "={{ $json.confidence }}"
+            },
+            {
+              "fieldId": "ai_analysis_complete",
+              "fieldValue": "={{ $json.ai_analysis_complete }}"
+            },
+            {
+              "fieldId": "analyzed_at",
+              "fieldValue": "={{ $json.analyzed_at }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        0
+      ],
+      "id": "8ecbbfb2-35dc-4ec8-b9e7-d9d599357d82",
+      "name": "Update AI Classification",
+      "credentials": {
+        "supabaseApi": {
+          "id": "NNcIRK0uKF38bg6A",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "585feccd-13ab-4055-a9ef-9b3c22855425",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retrieve Enriched Alert": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Groq Threat Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Groq Threat Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Threat Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Update AI Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Enriched Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "bfd364ae-1b3b-4c31-b436-656893d8c25c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a6bd543df9677f8ee277d7e452e5ae08b2585ccc2b8357da70bb0b395b4a333c"
+  },
+  "nodeGroups": [],
+  "id": "NEPY0SCO7KnmtXzh",
+  "tags": []
+}
