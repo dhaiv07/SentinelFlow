@@ -112,21 +112,27 @@ Discord notifications
 
 Repository Structure
 
-SentinelFlow/
+SentinelFlow
+│
+├── README.md                  
+│
 ├── workflows/
-│   ├── workflow-01-Security Alert Collection.json
-│   ├── workflow-02-Threat-Intelligence Enrichment.json
-│   ├── workflow-03-AI Threat Classification.json
-│   ├── workflow-04-incident-routing.json
-│   ├── workflow-05-Analyst Review & Incident Closure.json
-│   └── workflow-06-SOC Dashboard & Reporting.json
+│   ├── SentinelFlow_01 - Security Alert Collection.json
+│   ├── SentinelFlow_02 - Threat Intelligence Enrichment.json
+│   ├── SentinelFlow_03 - AI Threat Classification.json
+│   ├── SentinelFlow_04 - Incident Assignment & Escalation.json
+│   ├── SentinelFlow_05 - Analyst Review & Incident Closure.json
+│   └── SentinelFlow_06 - SOC Dashboard & Reporting.json
+│
 ├── docs/
-│   ├── architecture.png
+│   ├── architecture.png        
+│   │
 │   └── workflow-documentation/
-
+│       ├──04_Workflow_Documentation.md
+│
 ├── screenshots/
-
-├── README.md
+│   ├── 
+│
 └── .gitignore
 
 Setup
@@ -155,29 +161,6 @@ cd sentinelflow
 Import the six exported n8n workflow JSON files into n8n and configure
 the required credentials.
 
-Security
-
-Do not commit API keys, passwords, webhook secrets, Supabase
-service-role keys, or real security-alert data. Use n8n credentials or
-environment variables for secrets.
-
-Project Deliverables
-
-Six n8n workflow exports
-
-Workflow documentation
-
-Agent architecture diagram
-
-Project documentation
-
-GitHub README
-
-Screenshots and demo assets
-
-Presentation
-
-Demo video
 
 Project Information
 
