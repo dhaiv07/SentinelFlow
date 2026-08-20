@@ -163,10 +163,6 @@ Installation
 git clone https://github.com/dhaiv07/sentinelflow.git
 cd sentinelflow
 
-Import the six exported n8n workflow JSON files into n8n and configure
-the required credentials.
-
-
 Project Information
 
 Project: SentinelFlow
