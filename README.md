@@ -126,7 +126,6 @@ SentinelFlow
 │
 ├── docs/
 │   ├── architecture.png
-![Architecture](https://raw.githubusercontent.com/dhaiv07/sentinelflow/main/docs/architecture.png)
 │   │
 │   └── workflow-documentation/
 │       ├──04_Workflow_Documentation.md
